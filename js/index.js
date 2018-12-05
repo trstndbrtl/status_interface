@@ -1,4 +1,3 @@
-
 const config = {
   base: 'http://bureaudesconsultations.mm/v1/api',
   rest: 'http://bureaudesconsultations.mm',
@@ -18,7 +17,9 @@ let Appbar = mui.react.Appbar,
   Form = mui.react.Form,
   Input = mui.react.Input,
   Textarea = mui.react.Textarea,
-  Button = mui.react.Button;
+  Button = mui.react.Button,
+  Option = mui.react.Option,
+  Select = mui.react.Select;
 
 
 class App extends React.Component {
@@ -54,7 +55,7 @@ class App extends React.Component {
   updateData(destination, responseData, validate = true) {
     const validatedData = this.checkInvalidData(responseData, validate);
     if (validatedData || validate === false) {
-      console.log(responseData);
+      //  console.log(responseData);
       this.setState({ [destination]: responseData }, () => console.log(this.state));
     }
   }
@@ -92,7 +93,7 @@ class App extends React.Component {
 
   // Perform GET request. If successful, update state.
   fetchJsonApiGet(destination, url) {
-    console.log(url);
+    // console.log(url);
     fetch(url)
       .then(function (response) {
         return response.json();
@@ -281,19 +282,47 @@ class NodeDelete extends React.Component {
 
 class NodeEdit extends React.Component {
   constructor(props) {
-    console.log(props);
     super();
     this.state = {
       field_title: props.title,
       field_legende: props.field_legende,
       field_authors_books: props.field_authors_books,
+      field_authors_books_tid: props.field_authors_books_tid, 
+      selected_authors_books: props.field_authors_books_tid ? props.field_authors_books_tid : [],
+      authors: null,
+      addAuthor: false,
+      searchAuthors: [],
+      searchAuthorsString: '',
     };
     this.patchNode = this.patchNode.bind(this);
     this.handleChange = this.handleChange.bind(this);
     this.handleSubmit = this.handleSubmit.bind(this);
+    this.updateTerm = this.updateTerm.bind(this);
+  }
+
+  componentWillMount() {
+    this.loadNodeAuthors();
+  }
+
+  // GET
+  // Get list of node content & store in this.state.authors
+  loadNodeAuthors() {
+    this.fetchJsonApiGet('authors', `${API_ROOT}/figures/all?_format=json`, true);
+  }
+
+  // Get list of node content & store in this.state.authors
+  searchAuthors(string) {
+    if (string.length > 3) {
+      this.fetchJsonApiGet('searchAuthors', `${API_ROOT}/figures/search?_format=json&name=${string}`, true);
+      this.setState({ searchAuthorsString: string }); 
+    }else{
+      this.setState({ searchAuthors: [] });
+      this.setState({ searchAuthorsString: '' }); 
+    }
   }
 
   patchNode() {
+    let author = this.state.field_authors_books_tid.length > 0 ? [{ target_id: this.state.field_authors_books_tid }] : [];
     let data = {
       _links: {
         type: {
@@ -306,21 +335,72 @@ class NodeEdit extends React.Component {
       title: {
         value: this.state.field_title
       },
-      // field_legende: {
-      //   value: this.state.field_legende
-      // }
+      field_legende: {
+        value: this.state.field_legende
+      },
+      field_authors_books: author
     };
     this.props.patchNode(this.props.nid, data);
     this.props.cancelEdit();
   }
 
   handleChange(event, target) {
-    this.setState({ [target]: event.target.value }, () => console.log(this.state));
+    console.log(event.target.value);
+    this.setState({ [target]: event.target.value });
+  }
+
+  handleAuthors(event, target) {
+    // console.log(event.target.value);
+    this.searchAuthors(event.target.value);
+    // this.setState({ [target]: event.target.value }, () => console.log(this.state));
   }
 
   handleSubmit(e) {
     this.patchNode();
     e.preventDefault();
+  }
+
+  onChange(e) {
+    // const { option, value } = e.target;
+    // let index = e.target.selectedIndex;
+    // let el = e.target.childNodes[index];
+    // var ellabel = el.label;
+    // console.log(ellabel);
+    this.setState({ selected_authors_books: e.target.value });
+
+  }
+
+  addAuthor(e) {
+    this.setState({ addAuthor: true });
+    e.preventDefault();
+  }
+
+  // Update the data object in state, optionally validating.
+  updateTerm(destination, responseData, validate = true) {
+    // console.log(responseData);
+    this.setState({ [destination]: responseData });
+  }
+
+  selectStatusAuthor(e, tid, name) {
+    this.setState({ field_authors_books: name });
+    this.setState({ field_authors_books_tid: tid });
+    this.setState({ addAuthor: false });
+  }
+
+  removeAuthor(e){
+    this.setState({ field_authors_books: '' });
+    this.setState({ field_authors_books_tid: [] });
+  }
+
+  // Perform GET request. If successful, update state.
+  fetchJsonApiGet(destination, url) {
+    // console.log(url);
+    fetch(url)
+      .then(function (response) {
+        return response.json();
+      })
+      .then((data) => this.updateTerm(destination, data))
+      .catch(err => console.log('API error:', err));
   }
 
   render() {
@@ -374,7 +454,61 @@ class NodeEdit extends React.Component {
             style={styles.formItem}
             floatingLabel={true}
           />
-          <Input
+          {this.state.field_authors_books_tid.length > 0 ?
+            <div>
+              <button onClick={(e) => this.removeAuthor(e)}>
+                {this.state.field_authors_books} <i class="far fa-times-circle"></i>
+              </button>
+            </div> :
+            <div>
+              { this.state.addAuthor === false &&
+                <div>
+                  <button onClick={(e) => this.addAuthor(e)}>
+                    <i class="fas fa-arrow-left"></i> Ajouter un auteur
+                  </button>
+                </div>
+              }
+            </div>
+          }
+          { this.state.addAuthor &&
+            <div>
+              <Input
+                label="Choisir un auteur"
+                name="search_author"
+                type="text"
+                onChange={(e) => this.handleAuthors(e, 'search_author')}
+                style={styles.formItem}
+                floatingLabel={true}
+              />
+
+              {this.state.searchAuthorsString.length > 3 &&
+                <div>
+                {
+                  this.state.searchAuthors &&
+                    this.state.searchAuthors.length > 0 ?
+                    <div>
+                      {
+                        this.state.searchAuthors.map(item =>
+                          <Option value={item.tid} label={item.name} onClick={(e) => this.selectStatusAuthor(e, item.tid, item.name)} />)
+                      }
+                    </div> :
+                    <div>Add to database</div>
+                }
+                </div>
+              }
+
+              <Button
+                variant="raised"
+                name="submit"
+                type="submit"
+                value="Save"
+                style={styles.button}
+              >
+              <i class="fas fa-arrow-left"></i> 
+              </Button>
+            </div>
+          }
+          {/* <Input
             label="Authors"
             name="field_authors_books"
             type="text"
@@ -382,7 +516,20 @@ class NodeEdit extends React.Component {
             onChange={(e) => this.handleChange(e, 'field_authors_books')}
             style={styles.formItem}
             floatingLabel={true}
-          />
+          /> */}
+          
+          {/* <Select label="Auteur" name="input" value={this.state.selected_authors_books} onChange={this.onChange.bind(this)} >
+            <Option value='none' label='none' />
+          {this.state.authors !== null &&
+            this.state.authors !== undefined &&
+            this.state.authors !== null &&
+            this.state.authors.length > 0 ?
+            this.state.authors.map(item =>
+                <Option value={item.tid} label={item.name} />)
+            :
+            <p>No data</p>
+          }
+          </Select> */}
           <Button
             variant="raised"
             name="submit"
@@ -391,7 +538,7 @@ class NodeEdit extends React.Component {
             style={styles.button}
           >
             Enregistrer
-        </Button>
+          </Button>
         </Form>
       </div>
     );

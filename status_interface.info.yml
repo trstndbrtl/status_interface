@@ -1,0 +1,6 @@
+name: Status User Interface
+description: A module for create, update, delete status for user.
+package: MM
+
+type: module
+core: 8.x
